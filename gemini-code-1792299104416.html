@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CapCut Studio Pro - Editor con Salas Multijugador</title>
+    <style>
+        :root {
+            --bg-dark: #0d0e12;
+            --bg-panel: #16181d;
+            --bg-card: #20232a;
+            --border: #2a2e39;
+            --accent: #2563eb;
+            --accent-hover: #1d4ed8;
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --danger: #ef4444;
+            --header-h: 60px;
+            --timeline-h: 270px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        body { background: var(--bg-dark); color: var(--text-main); height: 100vh; display: flex; flex-direction: column; overflow: hidden; user-select: none; }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-dark); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        /* Header con el nuevo icono SVG vectorial */
+        .app-header { height: var(--header-h); background: var(--bg-panel); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 1.25rem; }
+        .logo-area { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.1rem; color: #60a5fa; text-decoration: none; }
+        .logo-svg { width: 34px; height: 34px; flex-shrink: 0; }
+
+        /* Colaboración UI */
+        .collab-group { display: flex; align-items: center; gap: 0.6rem; background: var(--bg-dark); padding: 4px 12px; border-radius: 8px; border: 1px solid var(--border); }
+        .badge { padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
+        .badge.offline { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .badge.online { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+        
+        .user-presence-list { display: flex; align-items: center; gap: 3px; margin-left: 6px; }
+        .presence-avatar { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 700; color: white; border: 2px solid var(--bg-dark); position: relative; }
+        .presence-avatar::after { content: ''; position: absolute; bottom: 0; right: 0; width: 6px; height: 6px; background: #4ade80; border-radius: 50%; border: 1px solid white; }
+
+        input[type="text"], input[type="number"], select { background: var(--bg-card); border: 1px solid var(--border); color: white; padding: 0.4rem 0.75rem; border-radius: 6px; font-size: 0.8rem; outline: none; }
+        input[type="text"]:focus, select:focus { border-color: var(--accent); }
+
+        .btn { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-main); padding: 0.45rem 0.85rem; border-radius: 6px; cursor: pointer; transition: 0.15s ease; font-size: 0.8rem; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+        .btn:hover { background: #2a2e38; border-color: #475569; }
+        .btn.primary { background: var(--accent); border: none; color: white; }
+        .btn.primary:hover { background: var(--accent-hover); }
+        .btn.create-room { background: linear-gradient(135deg, #10b981, #059669); border: none; color: white; }
+        .btn.create-room:hover { filter: brightness(1.1); }
+        .btn.accent { background: linear-gradient(135deg, #8b5cf6, #d946ef); border: none; color: white; }
+        .btn.danger { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; }
+        .btn.danger:hover { background: rgba(239, 68, 68, 0.3); }
+
+        .app-workspace { flex: 1; display: grid; grid-template-columns: 280px 1fr 300px; height: calc(100vh - var(--header-h) - var(--timeline-h)); overflow: hidden; }
+        
+        .panel { background: var(--bg-panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 1rem; gap: 0.85rem; overflow-y: auto; }
+        .panel-right { border-right: none; border-left: 1px solid var(--border); }
+        .panel-title { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
+
+        .drop-zone { border: 2px dashed var(--border); border-radius: 8px; padding: 1.5rem 1rem; text-align: center; color: var(--text-muted); cursor: pointer; transition: 0.2s; background: var(--bg-dark); }
+        .drop-zone:hover { border-color: var(--accent); color: var(--text-main); background: rgba(37, 99, 235, 0.05); }
+        
+        .media-list { flex: 1; display: flex; flex-direction: column; gap: 0.5rem; }
+        .media-item { display: flex; align-items: center; gap: 0.75rem; background: var(--bg-card); padding: 0.5rem; border-radius: 6px; cursor: grab; position: relative; border: 1px solid var(--border); }
+        .media-item:hover .btn-add-quick { opacity: 1; pointer-events: auto; }
+        .media-item img { width: 50px; height: 36px; object-fit: cover; border-radius: 4px; background: black; }
+        .btn-add-quick { opacity: 0; pointer-events: none; position: absolute; right: 8px; background: var(--accent); border: none; color: white; padding: 3px 8px; border-radius: 4px; font-weight: 600; font-size: 0.7rem; cursor: pointer; }
+
+        .center-stage { display: flex; flex-direction: column; background: #000; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+        #preview-canvas { max-width: 95%; max-height: 95%; aspect-ratio: 16/9; background: #000; border-radius: 6px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); border: 1px solid var(--border); }
+        .remote-cursor { position: absolute; font-size: 0.65rem; color: white; background: rgba(5, 150, 105, 0.8); padding: 2px 6px; border-radius: 4px; pointer-events: none; border: 1px solid #34d399; display: flex; gap: 4px; align-items: center; transition: 0.15s ease-out; }
+
+        .timeline-container { height: var(--timeline-h); background: var(--bg-panel); border-top: 1px solid var(--border); display: flex; flex-direction: column; }
+        
+        .master-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 1.25rem; background: var(--bg-panel); border-bottom: 1px solid var(--border); }
+        .toolbar-group { display: flex; align-items: center; gap: 0.6rem; }
+        .timecode-display { font-family: monospace; font-size: 0.85rem; color: #38bdf8; background: var(--bg-dark); padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border); font-weight: 600; }
+        
+        .timeline-ruler-wrap { height: 28px; background: var(--bg-dark); border-bottom: 1px solid var(--border); position: relative; cursor: pointer; overflow: hidden; }
+        .timeline-ruler-ticks { position: absolute; top: 0; left: 0; height: 100%; pointer-events: none; }
+        .ruler-tick { position: absolute; top: 0; width: 1px; height: 8px; background: var(--border); font-size: 9px; color: var(--text-muted); padding-left: 3px; font-family: monospace; }
+        
+        .playhead { position: absolute; top: 0; width: 2px; height: 100%; background: #ef4444; z-index: 50; pointer-events: none; }
+        .playhead::before { content: ''; position: absolute; top: 0; left: -5px; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 8px solid #ef4444; }
+
+        .tracks-wrapper { flex: 1; overflow: auto; display: flex; flex-direction: column; position: relative; background: #090a0d; }
+        .track { display: flex; height: 56px; border-bottom: 1px solid var(--border); position: relative; }
+        .track-label { width: 130px; background: var(--bg-panel); border-right: 1px solid var(--border); display: flex; align-items: center; padding-left: 0.85rem; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); position: sticky; left: 0; z-index: 20; }
+        .track-content { flex: 1; position: relative; }
+
+        .clip { position: absolute; height: 44px; top: 5px; background: #2563eb; border-radius: 6px; padding: 0.25rem 0.6rem; font-size: 0.75rem; display: flex; align-items: center; justify-content: space-between; cursor: move; border: 1px solid #60a5fa; color: white; white-space: nowrap; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.4); }
+        .clip.audio { background: #059669; border-color: #34d399; }
+        .clip.text { background: #c2410c; border-color: #fb923c; }
+        .clip.selected { border: 2px solid #ffffff; box-shadow: 0 0 12px rgba(255,255,255,0.6); z-index: 10; }
+
+        .trim-handle { position: absolute; top: 0; width: 8px; height: 100%; background: rgba(255,255,255,0.3); cursor: ew-resize; z-index: 12; }
+        .trim-handle.left { left: 0; border-top-left-radius: 6px; border-bottom-left-radius: 6px; }
+        .trim-handle.right { right: 0; border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
+        .trim-handle:hover { background: rgba(255,255,255,0.8); }
+
+        .shortcut-hint { font-size: 0.7rem; color: var(--text-muted); background: var(--bg-dark); padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border); display: flex; gap: 6px; }
+        .shortcut-hint kbd { background: var(--bg-card); border: 1px solid var(--border); border-radius: 3px; padding: 1px 4px; font-family: monospace; color: white; }
+    </style>
+</head>
+<body>
+
+    <header class="app-header">
+        <a href="#" class="logo-area">
+            <!-- Icono SVG vectorial exacto (Siempre visible) -->
+            <svg class="logo-svg" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect width="100" height="100" rx="24" fill="url(#grad_bg)"/>
+                <rect x="15" y="18" width="70" height="64" rx="12" fill="#F0F3FA"/>
+                <circle cx="23" cy="26" r="3" fill="#FF5F56"/>
+                <circle cx="31" cy="26" r="3" fill="#FFBD2E"/>
+                <circle cx="39" cy="26" r="3" fill="#27C93F"/>
+                <rect x="20" y="34" width="60" height="28" rx="6" fill="#2D3142"/>
+                <path d="M22 60L42 42L58 52L78 36V60H22Z" fill="url(#grad_mountain)"/>
+                <circle cx="66" cy="42" r="5" fill="#FFE082"/>
+                <circle cx="50" cy="48" r="9" fill="white"/>
+                <polygon points="48,43 55,48 48,53" fill="#5B51D8"/>
+                <rect x="20" y="66" width="16" height="6" rx="3" fill="#7C3AED"/>
+                <rect x="38" y="66" width="20" height="6" rx="3" fill="#FF7A59"/>
+                <rect x="60" y="66" width="20" height="6" rx="3" fill="#10B981"/>
+                <path d="M43 63L43 76M43 76L40 73M43 76L46 73" stroke="#FF5F56" stroke-width="2" stroke-linecap="round"/>
+                <defs>
+                    <linearGradient id="grad_bg" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+                        <stop stop-color="#6366F1"/>
+                        <stop offset="0.5" stop-color="#3B82F6"/>
+                        <stop offset="1" stop-color="#06B6D4"/>
+                    </linearGradient>
+                    <linearGradient id="grad_mountain" x1="22" y1="36" x2="78" y2="60" gradientUnits="userSpaceOnUse">
+                        <stop stop-color="#4C51BF"/>
+                        <stop offset="1" stop-color="#2B6CB0"/>
+                    </linearGradient>
+                </defs>
+            </svg>
+            <span>CapCut Studio Pro</span>
+        </a>
+
+        <!-- Creador y Unidor de Salas -->
+        <div class="collab-group">
+            <span id="room-badge" class="badge offline">Offline</span>
+            <button id="btn-create-room" class="btn create-room">✨ Crear Sala</button>
+            <span style="color:var(--border);">|</span>
+            <input type="text" id="room-code-input" placeholder="Código de Sala" style="width: 110px;">
+            <button id="btn-join-room" class="btn primary" style="padding: 0.3rem 0.6rem;">Unirse</button>
+            
+            <div id="user-presence-list" class="user-presence-list"></div>
+            <div style="font-size:0.7rem; color:var(--text-muted); margin-left:4px;"><span id="users-online-count">1</span> Online</div>
+        </div>
+
+        <button id="btn-export" class="btn accent">🎬 Exportar Video MP4</button>
+    </header>
+
+    <div class="app-workspace">
+        <aside class="panel">
+            <div class="panel-title">Biblioteca Multimedia</div>
+            <div id="drop-zone" class="drop-zone">
+                <p style="font-weight: 600; font-size: 0.85rem;">📂 Arrastra tus archivos aquí</p>
+                <p style="font-size: 0.75rem; color:var(--text-muted); margin-top:4px;">o haz clic para examinar</p>
+                <input type="file" id="file-input" multiple accept="video/*,audio/*,image/*" hidden>
+            </div>
+            <div id="media-list" class="media-list"></div>
+        </aside>
+
+        <main class="center-stage">
+            <canvas id="preview-canvas" width="1280" height="720"></canvas>
+            <div id="remote-cursors"></div>
+        </main>
+
+        <aside class="panel panel-right">
+            <div class="panel-title">Propiedades del Clip</div>
+            <div id="inspector-content">
+                <p style="color:var(--text-muted); font-size:0.8rem; font-style:italic;">Selecciona un clip para ajustar parámetros.</p>
+            </div>
+        </aside>
+    </div>
+
+    <footer class="timeline-container">
+        <div class="master-toolbar">
+            <div class="toolbar-group">
+                <button id="btn-play" class="btn primary" style="min-width: 100px;">▶ Reproducir</button>
+                <div class="timecode-display" id="timecode">00:00:00 / 00:00:00</div>
+            </div>
+
+            <div class="toolbar-group">
+                <button id="btn-split" class="btn">✂️ Dividir (S)</button>
+                <button id="btn-freeze" class="btn">❄️ Congelar</button>
+                <button id="btn-add-text" class="btn">💬 Texto</button>
+                <button id="btn-record-voice" class="btn">🎙️ Voz en Off</button>
+                <button id="btn-delete" class="btn danger">🗑️ Borrar</button>
+            </div>
+
+            <div class="toolbar-group">
+                <label style="font-size:0.75rem; color:var(--text-muted);">Zoom:</label>
+                <input type="range" id="zoom-range" min="0.5" max="3" value="1" step="0.1" style="width: 80px;">
+                <div class="shortcut-hint">
+                    <span><kbd>Espacio</kbd> Play</span>
+                    <span><kbd>S</kbd> Cortar</span>
+                    <span><kbd>Supr</kbd> Del</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-ruler-wrap" id="timeline-ruler">
+            <div id="playhead" class="playhead"></div>
+            <div class="timeline-ruler-ticks" id="ruler-ticks"></div>
+        </div>
+
+        <div class="tracks-wrapper" id="tracks-wrapper">
+            <div class="track" data-track-type="video">
+                <div class="track-label">🎥 Video</div>
+                <div class="track-content" id="track-video"></div>
+            </div>
+            <div class="track" data-track-type="audio">
+                <div class="track-label">🎵 Audio / Voz</div>
+                <div class="track-content" id="track-audio"></div>
+            </div>
+            <div class="track" data-track-type="text">
+                <div class="track-label">📝 Textos</div>
+                <div class="track-content" id="track-text"></div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        class CapCutProApp {
+            constructor() {
+                this.mediaMap = new Map();
+                this.clips = [];
+                this.currentTime = 0;
+                this.selectedClipId = null;
+                this.zoom = 1;
+                this.isPlaying = false;
+                this.animId = null;
+                this.lastTime = performance.now();
+                
+                this.isRecording = false;
+                this.mediaRecorder = null;
+                this.audioChunks = [];
+
+                this.audioCtx = null;
+                this.audioDestination = null;
+
+                // Usuarios simulados
+                this.simulatedUsers = [
+                    { id: 'user_A', name: 'User1 (Remote)', color: '#059669', initialX: 300, initialY: 200 },
+                    { id: 'user_B', name: 'User2 (Remote)', color: '#d97706', initialX: 800, initialY: 500 }
+                ];
+
+                this.canvas = document.getElementById('preview-canvas');
+                this.ctx = this.canvas.getContext('2d');
+
+                this.initListeners();
+                this.initCanvasDragging();
+                this.initShortcuts();
+                this.buildRulerTicks();
+                this.renderFrame();
+                this.updatePlayheadPosition();
+            }
+
+            initAudioContext() {
+                if (!this.audioCtx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.audioCtx = new AudioContext();
+                    this.audioDestination = this.audioCtx.createMediaStreamDestination();
+                }
+                if (this.audioCtx.state === 'suspended') {
+                    this.audioCtx.resume();
+                }
+            }
+
+            getTotalDuration() {
+                if (this.clips.length === 0) return 30;
+                let maxEnd = 0;
+                this.clips.forEach(c => {
+                    const end = c.start + c.duration;
+                    if (end > maxEnd) maxEnd = end;
+                });
+                return Math.max(maxEnd + 2, 10);
+            }
+
+            buildRulerTicks() {
+                const totalSecs = Math.ceil(this.getTotalDuration());
+                const widthPx = totalSecs * 100 * this.zoom + 500;
+                
+                document.querySelectorAll('.track').forEach(t => t.style.minWidth = `${widthPx}px`);
+                
+                const container = document.getElementById('ruler-ticks');
+                container.style.width = `${widthPx}px`;
+                container.innerHTML = '';
+
+                for (let i = 0; i <= totalSecs + 30; i += 1) {
+                    const tick = document.createElement('div');
+                    tick.className = 'ruler-tick';
+                    tick.style.left = `${i * 100 * this.zoom}px`;
+                    if (i % 5 === 0) {
+                        tick.style.height = '12px';
+                        tick.textContent = `${i}s`;
+                    }
+                    container.appendChild(tick);
+                }
+            }
+
+            initListeners() {
+                const dropZone = document.getElementById('drop-zone');
+                const fileInput = document.getElementById('file-input');
+
+                dropZone.addEventListener('click', () => fileInput.click());
+                dropZone.addEventListener('dragover', (e) => e.preventDefault());
+                dropZone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    this.handleFiles(e.dataTransfer.files);
+                });
+                fileInput.addEventListener('change', (e) => this.handleFiles(e.target.files));
+
+                const ruler = document.getElementById('timeline-ruler');
+                ruler.addEventListener('click', (e) => {
+                    const rect = ruler.getBoundingClientRect();
+                    const scrollLeft = document.getElementById('tracks-wrapper').scrollLeft;
+                    const clickX = e.clientX - rect.left + scrollLeft - 130;
+                    this.currentTime = Math.max(0, clickX / (100 * this.zoom));
+                    this.updatePlayheadPosition();
+                    this.syncMediaToCurrentTime();
+                });
+
+                document.getElementById('btn-play').addEventListener('click', () => this.togglePlay());
+                document.getElementById('btn-split').addEventListener('click', () => this.splitSelectedClip());
+                document.getElementById('btn-freeze').addEventListener('click', () => this.freezeFrame());
+                document.getElementById('btn-add-text').addEventListener('click', () => this.addTextClip());
+                document.getElementById('btn-record-voice').addEventListener('click', () => this.toggleVoiceRecording());
+                document.getElementById('btn-delete').addEventListener('click', () => this.deleteSelectedClip());
+
+                document.getElementById('zoom-range').addEventListener('input', (e) => {
+                    this.zoom = parseFloat(e.target.value);
+                    this.buildRulerTicks();
+                    this.renderTimeline();
+                    this.updatePlayheadPosition();
+                });
+
+                // Crear Sala Nueva
+                document.getElementById('btn-create-room').addEventListener('click', () => {
+                    const randomCode = 'ROOM-' + Math.floor(1000 + Math.random() * 9000);
+                    document.getElementById('room-code-input').value = randomCode;
+                    this.joinRoom(randomCode, true);
+                });
+
+                // Unirse a Sala Existente
+                document.getElementById('btn-join-room').addEventListener('click', () => {
+                    const code = document.getElementById('room-code-input').value.trim();
+                    if (code) {
+                        this.joinRoom(code, false);
+                    } else {
+                        alert('Escribe un código de sala para unirte.');
+                    }
+                });
+
+                document.getElementById('btn-export').addEventListener('click', () => this.exportVideo());
+
+                document.querySelectorAll('.track-content').forEach(trackContent => {
+                    trackContent.addEventListener('dragover', (e) => e.preventDefault());
+                    trackContent.addEventListener('drop', (e) => {
+                        e.preventDefault();
+                        const mediaId = e.dataTransfer.getData('text/plain');
+                        if (mediaId) this.addMediaToTrack(mediaId, e.clientX, trackContent);
+                    });
+                });
+            }
+
+            joinRoom(code, isCreator) {
+                const roomBadge = document.getElementById('room-badge');
+                roomBadge.textContent = `Sala: ${code}`;
+                roomBadge.className = 'badge online';
+                document.getElementById('users-online-count').textContent = this.simulatedUsers.length + 1;
+                
+                this.initPresenceList();
+                this.initRemoteSimulatedCursors();
+
+                if (isCreator) {
+                    alert(`¡Sala creada con éxito!\n\nCódigo de Sala: ${code}\nComparte este código con tu equipo para editar juntos.`);
+                }
+            }
+
+            initPresenceList() {
+                const list = document.getElementById('user-presence-list');
+                list.innerHTML = `<div class="presence-avatar" style="background:#2563eb;" title="Tú (Anfitrión)">T</div>`;
+                this.simulatedUsers.forEach(u => {
+                    const avatar = document.createElement('div');
+                    avatar.className = 'presence-avatar';
+                    avatar.style.background = u.color;
+                    avatar.title = u.name;
+                    avatar.textContent = u.name.charAt(u.name.length - 2);
+                    list.appendChild(avatar);
+                });
+            }
+
+            initRemoteSimulatedCursors() {
+                const container = document.getElementById('remote-cursors');
+                container.innerHTML = '';
+                this.simulatedUsers.forEach(u => {
+                    const cursor = document.createElement('div');
+                    cursor.id = `cursor-${u.id}`;
+                    cursor.className = 'remote-cursor';
+                    cursor.style.background = u.color;
+                    cursor.style.left = `${u.initialX}px`;
+                    cursor.style.top = `${u.initialY}px`;
+                    cursor.innerHTML = `<svg width='12' height='12' viewBox='0 0 24 24'><path fill='white' d='M2.44 2.1l18 10-6.11.96 4 6.13-1.68 1.1-3.92-6L2.44 2.1z'/></svg> ${u.name}`;
+                    container.appendChild(cursor);
+                });
+            }
+
+            simulateRemoteChanges() {
+                if (!document.getElementById('room-badge').classList.contains('online')) return;
+
+                const now = performance.now();
+                this.simulatedUsers.forEach(u => {
+                    const cursorEl = document.getElementById(`cursor-${u.id}`);
+                    if (!cursorEl) return;
+                    
+                    const freq = now * 0.001 * (u.id === 'user_A' ? 0.7 : 0.4);
+                    const range = 80;
+                    const dx = Math.sin(freq) * range;
+                    const dy = Math.cos(freq * 1.3) * (range / 2);
+                    
+                    cursorEl.style.transform = `translate(${dx}px, ${dy}px)`;
+                });
+            }
+
+            initCanvasDragging() {
+                let isDraggingText = false;
+                let activeTextClip = null;
+                let startMouseX = 0, startMouseY = 0, initialX = 0, initialY = 0;
+
+                this.canvas.addEventListener('mousedown', (e) => {
+                    const rect = this.canvas.getBoundingClientRect();
+                    const scaleX = this.canvas.width / rect.width;
+                    const scaleY = this.canvas.height / rect.height;
+                    const mouseX = (e.clientX - rect.left) * scaleX;
+                    const mouseY = (e.clientY - rect.top) * scaleY;
+
+                    const activeClips = this.clips.filter(c => c.type === 'text' && this.currentTime >= c.start && this.currentTime <= (c.start + c.duration));
+                    
+                    for (let clip of activeClips) {
+                        this.ctx.font = `${clip.size}px ${clip.font}`;
+                        const textMetrics = this.ctx.measureText(clip.text);
+                        if (mouseX >= clip.x && mouseX <= clip.x + textMetrics.width && mouseY >= clip.y - clip.size && mouseY <= clip.y + 10) {
+                            isDraggingText = true;
+                            activeTextClip = clip;
+                            this.selectedClipId = clip.id;
+                            startMouseX = mouseX; startMouseY = mouseY;
+                            initialX = clip.x; initialY = clip.y;
+                            this.renderTimeline();
+                            this.triggerInspector(clip);
+                            break;
+                        }
+                    }
+                });
+
+                window.addEventListener('mousemove', (e) => {
+                    if (!isDraggingText || !activeTextClip) return;
+                    const rect = this.canvas.getBoundingClientRect();
+                    const mouseX = (e.clientX - rect.left) * (this.canvas.width / rect.width);
+                    const mouseY = (e.clientY - rect.top) * (this.canvas.height / rect.height);
+
+                    activeTextClip.x = initialX + (mouseX - startMouseX);
+                    activeTextClip.y = initialY + (mouseY - startMouseY);
+                    this.renderFrame();
+                });
+
+                window.addEventListener('mouseup', () => { isDraggingText = false; activeTextClip = null; });
+            }
+
+            initShortcuts() {
+                window.addEventListener('keydown', (e) => {
+                    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
+
+                    if (e.code === 'Space') { e.preventDefault(); this.togglePlay(); }
+                    else if (e.code === 'Delete' || e.code === 'Backspace') { e.preventDefault(); this.deleteSelectedClip(); }
+                    else if (e.code === 'KeyS') { e.preventDefault(); this.splitSelectedClip(); }
+                });
+            }
+
+            async handleFiles(files) {
+                this.initAudioContext();
+                for (const file of files) {
+                    const mediaId = 'media_' + Math.random().toString(36).substr(2, 9);
+                    const type = file.type.startsWith('video') ? 'video' : file.type.startsWith('audio') ? 'audio' : 'image';
+                    const url = URL.createObjectURL(file);
+                    let duration = 6, thumbnail = '', element = null;
+
+                    if (type === 'video') {
+                        element = document.createElement('video');
+                        element.src = url;
+                        element.preload = 'auto';
+                        element.crossOrigin = 'anonymous';
+                        duration = await this.getVideoDuration(url);
+                        thumbnail = await this.generateVideoThumbnail(url);
+                    } else if (type === 'image') {
+                        element = new Image();
+                        element.src = url;
+                        thumbnail = url;
+                    } else if (type === 'audio') {
+                        element = document.createElement('audio');
+                        element.src = url;
+                        element.preload = 'auto';
+                        element.crossOrigin = 'anonymous';
+                        duration = await this.getVideoDuration(url);
+                        thumbnail = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="34" fill="%2334d399"><text x="12" y="22" font-size="14">🎵</text></svg>';
+                    }
+
+                    let audioNode = null;
+                    if (element && (type === 'video' || type === 'audio')) {
+                        try {
+                            const source = this.audioCtx.createMediaElementSource(element);
+                            source.connect(this.audioCtx.destination);
+                            source.connect(this.audioDestination);
+                            audioNode = source;
+                        } catch (err) {}
+                    }
+
+                    const mediaObj = { id: mediaId, name: file.name, type, url, duration, thumbnail, element, audioNode };
+                    this.mediaMap.set(mediaId, mediaObj);
+                    this.renderMediaItem(mediaObj);
+
+                    if (this.clips.length === 0 && (type === 'video' || type === 'image')) {
+                        this.addClip({
+                            id: 'clip_' + Math.random().toString(36).substr(2, 9),
+                            mediaId: mediaId,
+                            name: file.name,
+                            type: type === 'image' ? 'video' : type,
+                            url: url,
+                            start: 0,
+                            duration: duration
+                        });
+                    }
+                }
+            }
+
+            getVideoDuration(url) {
+                return new Promise((resolve) => {
+                    const video = document.createElement('video');
+                    video.src = url;
+                    video.addEventListener('loadedmetadata', () => resolve(video.duration || 6));
+                });
+            }
+
+            generateVideoThumbnail(url) {
+                return new Promise((resolve) => {
+                    const video = document.createElement('video');
+                    video.src = url;
+                    video.currentTime = 0.5;
+                    video.addEventListener('seeked', () => {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = 48; canvas.height = 34;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                        resolve(canvas.toDataURL());
+                    });
+                });
+            }
+
+            renderMediaItem(media) {
+                const list = document.getElementById('media-list');
+                const item = document.createElement('div');
+                item.className = 'media-item';
+                item.draggable = true;
+
+                item.innerHTML = `
+                    <img src="${media.thumbnail}" alt="thumb">
+                    <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:0.75rem; flex:1;">
+                        <strong style="display:block; color:white; overflow:hidden; text-overflow:ellipsis;">${media.name}</strong>
+                        <span style="color:var(--text-muted); font-size:0.65rem;">${media.type.toUpperCase()} • ${media.duration.toFixed(1)}s</span>
+                    </div>
+                    <button class="btn-add-quick">+ Añadir</button>
+                `;
+
+                item.querySelector('.btn-add-quick').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.addMediaToTrack(media.id);
+                });
+
+                item.addEventListener('dragstart', (e) => e.dataTransfer.setData('text/plain', media.id));
+                list.appendChild(item);
+            }
+
+            addMediaToTrack(mediaId, clientX = null, targetTrackContent = null) {
+                const mediaData = this.mediaMap.get(mediaId);
+                if (!mediaData) return;
+
+                let trackType = mediaData.type === 'image' ? 'video' : mediaData.type;
+                if (targetTrackContent) {
+                    trackType = targetTrackContent.closest('.track').dataset.trackType;
+                }
+
+                let startTime = this.currentTime;
+                if (clientX && targetTrackContent) {
+                    const rect = targetTrackContent.getBoundingClientRect();
+                    startTime = Math.max(0, (clientX - rect.left + document.getElementById('tracks-wrapper').scrollLeft) / (100 * this.zoom));
+                }
+
+                this.addClip({
+                    id: 'clip_' + Math.random().toString(36).substr(2, 9),
+                    mediaId: mediaData.id,
+                    name: mediaData.name,
+                    type: trackType,
+                    url: mediaData.url,
+                    start: startTime,
+                    duration: mediaData.duration || 6
+                });
+            }
+
+            addClip(clip) {
+                this.clips.push(clip);
+                this.selectedClipId = clip.id;
+                this.buildRulerTicks();
+                this.renderTimeline();
+                this.renderFrame();
+            }
+
+            deleteSelectedClip() {
+                if (!this.selectedClipId) return;
+                this.clips = this.clips.filter(c => c.id !== this.selectedClipId);
+                this.selectedClipId = null;
+                document.getElementById('inspector-content').innerHTML = '<p style="color:var(--text-muted); font-size:0.8rem; font-style:italic;">Selecciona un clip para ajustar parámetros.</p>';
+                this.buildRulerTicks();
+                this.renderTimeline();
+                this.renderFrame();
+            }
+
+            splitSelectedClip() {
+                if (!this.selectedClipId) return;
+                const clip = this.clips.find(c => c.id === this.selectedClipId);
+                if (!clip || this.currentTime <= clip.start || this.currentTime >= clip.start + clip.duration) return;
+
+                const splitOffset = this.currentTime - clip.start;
+                const rightClip = {
+                    ...clip,
+                    id: 'clip_' + Math.random().toString(36).substr(2, 9),
+                    start: this.currentTime,
+                    duration: clip.duration - splitOffset
+                };
+
+                clip.duration = splitOffset;
+                this.clips.push(rightClip);
+                this.buildRulerTicks();
+                this.renderTimeline();
+            }
+
+            freezeFrame() {
+                if (!this.selectedClipId) return;
+                const clip = this.clips.find(c => c.id === this.selectedClipId);
+                if (!clip) return;
+
+                this.clips.push({
+                    ...clip,
+                    id: 'clip_' + Math.random().toString(36).substr(2, 9),
+                    name: `${clip.name} (Congelado)`,
+                    start: clip.start + clip.duration,
+                    duration: 3
+                });
+                this.buildRulerTicks();
+                this.renderTimeline();
+            }
+
+            addTextClip() {
+                this.addClip({
+                    id: 'text_' + Math.random().toString(36).substr(2, 9),
+                    name: 'Texto: ¡Hola!',
+                    type: 'text',
+                    text: '¡Edición Perfecta!',
+                    font: 'Montserrat',
+                    size: 52,
+                    color: '#ffffff',
+                    x: 120,
+                    y: 220,
+                    start: this.currentTime,
+                    duration: 5
+                });
+            }
+
+            async toggleVoiceRecording() {
+                this.initAudioContext();
+                const btn = document.getElementById('btn-record-voice');
+                if (!this.isRecording) {
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        this.mediaRecorder = new MediaRecorder(stream);
+                        this.audioChunks = [];
+
+                        this.mediaRecorder.ondataavailable = (e) => this.audioChunks.push(e.data);
+                        this.mediaRecorder.onstop = () => {
+                            const blob = new Blob(this.audioChunks, { type: 'audio/webm' });
+                            const audioUrl = URL.createObjectURL(blob);
+                            const audioEl = document.createElement('audio'); 
+                            audioEl.src = audioUrl;
+                            audioEl.crossOrigin = 'anonymous';
+
+                            const mediaId = 'voice_' + Math.random().toString(36).substr(2, 9);
+                            
+                            try {
+                                const source = this.audioCtx.createMediaElementSource(audioEl);
+                                source.connect(this.audioCtx.destination);
+                                source.connect(this.audioDestination);
+                            } catch (e) {}
+
+                            this.mediaMap.set(mediaId, { id: mediaId, name: 'Voz en Off', type: 'audio', url: audioUrl, duration: 6, element: audioEl });
+
+                            this.addClip({
+                                id: 'clip_' + Math.random().toString(36).substr(2, 9),
+                                mediaId: mediaId,
+                                name: 'Voz en Off',
+                                type: 'audio',
+                                url: audioUrl,
+                                start: this.currentTime,
+                                duration: 6
+                            });
+                        };
+
+                        this.mediaRecorder.start();
+                        this.isRecording = true;
+                        btn.textContent = '⏹️ Detener';
+                        btn.style.background = '#dc2626';
+                    } catch (err) { alert('Micrófono no disponible.'); }
+                } else {
+                    this.mediaRecorder.stop();
+                    this.isRecording = false;
+                    btn.textContent = '🎙️ Voz en Off';
+                    btn.style.background = '';
+                }
+            }
+
+            updatePlayheadPosition() {
+                const playhead = document.getElementById('playhead');
+                const leftPos = 130 + (this.currentTime * 100 * this.zoom);
+                playhead.style.left = `${leftPos}px`;
+                
+                const mins = Math.floor(this.currentTime / 60).toString().padStart(2, '0');
+                const secs = Math.floor(this.currentTime % 60).toString().padStart(2, '0');
+                const millis = Math.floor((this.currentTime % 1) * 100).toString().padStart(2, '0');
+                
+                const totalMins = Math.floor(this.getTotalDuration() / 60).toString().padStart(2, '0');
+                const totalSecs = Math.floor(this.getTotalDuration() % 60).toString().padStart(2, '0');
+                
+                document.getElementById('timecode').textContent = `${mins}:${secs}:${millis} / ${totalMins}:${totalSecs}:00`;
+            }
+
+            renderTimeline() {
+                ['video', 'audio', 'text'].forEach(type => {
+                    const container = document.getElementById(`track-${type}`);
+                    container.innerHTML = '';
+                    
+                    this.clips.filter(c => c.type === type).forEach(clip => {
+                        const el = document.createElement('div');
+                        el.className = `clip ${type} ${clip.id === this.selectedClipId ? 'selected' : ''}`;
+                        el.style.left = `${clip.start * 100 * this.zoom}px`;
+                        el.style.width = `${clip.duration * 100 * this.zoom}px`;
+                        
+                        el.innerHTML = `
+                            <div class="trim-handle left"></div>
+                            <span style="overflow:hidden; text-overflow:ellipsis; padding:0 4px; pointer-events:none; flex:1;">${clip.name}</span>
+                            <div class="trim-handle right"></div>
+                        `;
+
+                        el.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            this.selectedClipId = clip.id;
+                            this.renderTimeline();
+                            this.triggerInspector(clip);
+                        });
+
+                        const leftHandle = el.querySelector('.trim-handle.left');
+                        const rightHandle = el.querySelector('.trim-handle.right');
+
+                        leftHandle.addEventListener('mousedown', (e) => {
+                            e.stopPropagation();
+                            const startX = e.clientX, initialStart = clip.start, initialDuration = clip.duration;
+
+                            const onMouseMove = (ev) => {
+                                const dx = (ev.clientX - startX) / (100 * this.zoom);
+                                if (initialDuration - dx > 0.5 && initialStart + dx >= 0) {
+                                    clip.start = initialStart + dx;
+                                    clip.duration = initialDuration - dx;
+                                    el.style.left = `${clip.start * 100 * this.zoom}px`;
+                                    el.style.width = `${clip.duration * 100 * this.zoom}px`;
+                                    this.renderFrame();
+                                    this.buildRulerTicks();
+                                }
+                            };
+                            const onMouseUp = () => {
+                                window.removeEventListener('mousemove', onMouseMove);
+                                window.removeEventListener('mouseup', onMouseUp);
+                                this.renderTimeline();
+                            };
+                            window.addEventListener('mousemove', onMouseMove);
+                            window.addEventListener('mouseup', onMouseUp);
+                        });
+
+                        rightHandle.addEventListener('mousedown', (e) => {
+                            e.stopPropagation();
+                            const startX = e.clientX, initialDuration = clip.duration;
+
+                            const onMouseMove = (ev) => {
+                                const dx = (ev.clientX - startX) / (100 * this.zoom);
+                                if (initialDuration + dx > 0.5) {
+                                    clip.duration = initialDuration + dx;
+                                    el.style.width = `${clip.duration * 100 * this.zoom}px`;
+                                    this.renderFrame();
+                                    this.buildRulerTicks();
+                                }
+                            };
+                            const onMouseUp = () => {
+                                window.removeEventListener('mousemove', onMouseMove);
+                                window.removeEventListener('mouseup', onMouseUp);
+                                this.renderTimeline();
+                            };
+                            window.addEventListener('mousemove', onMouseMove);
+                            window.addEventListener('mouseup', onMouseUp);
+                        });
+
+                        let isDragging = false, startX = 0, initialClipStart = 0;
+
+                        el.addEventListener('mousedown', (e) => {
+                            if (e.target.classList.contains('trim-handle')) return;
+                            isDragging = true;
+                            startX = e.clientX;
+                            initialClipStart = clip.start;
+                            this.selectedClipId = clip.id;
+                            this.renderTimeline();
+                            this.triggerInspector(clip);
+                        });
+
+                        window.addEventListener('mousemove', (e) => {
+                            if (!isDragging) return;
+                            clip.start = Math.max(0, initialClipStart + ((e.clientX - startX) / (100 * this.zoom)));
+                            el.style.left = `${clip.start * 100 * this.zoom}px`;
+                            this.renderFrame();
+                            this.buildRulerTicks();
+                        });
+
+                        window.addEventListener('mouseup', () => { if (isDragging) { isDragging = false; this.renderTimeline(); } });
+                        container.appendChild(el);
+                    });
+                });
+            }
+
+            triggerInspector(clip) {
+                const panel = document.getElementById('inspector-content');
+                if (clip.type === 'text') {
+                    panel.innerHTML = `
+                        <div style="display:flex; flex-direction:column; gap:0.75rem;">
+                            <div>
+                                <label style="font-size:0.7rem; color:var(--text-muted)">Texto:</label>
+                                <input type="text" id="insp-text" value="${clip.text}" style="width:100%; margin-top:3px;">
+                            </div>
+                            <div>
+                                <label style="font-size:0.7rem; color:var(--text-muted)">Tipografía:</label>
+                                <select id="insp-font" style="width:100%; margin-top:3px;">
+                                    <option value="Montserrat" ${clip.font==='Montserrat'?'selected':''}>Montserrat</option>
+                                    <option value="Roboto" ${clip.font==='Roboto'?'selected':''}>Roboto</option>
+                                    <option value="Impact" ${clip.font==='Impact'?'selected':''}>Impact</option>
+                                    <option value="Arial" ${clip.font==='Arial'?'selected':''}>Arial</option>
+                                    <option value="Georgia" ${clip.font==='Georgia'?'selected':''}>Georgia</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="font-size:0.7rem; color:var(--text-muted)">Color:</label>
+                                <input type="color" id="insp-color" value="${clip.color}" style="height:32px; width:100%; background:none; border:1px solid var(--border); border-radius:4px; cursor:pointer; margin-top:3px;">
+                            </div>
+                            <div>
+                                <label style="font-size:0.7rem; color:var(--text-muted)">Tamaño:</label>
+                                <input type="number" id="insp-size" value="${clip.size}" style="width:100%; margin-top:3px;">
+                            </div>
+                            <button id="insp-delete" class="btn danger" style="width:100%; margin-top:6px;">🗑️ Eliminar</button>
+                        </div>
+                    `;
+                    document.getElementById('insp-text').addEventListener('input', (e) => { clip.text = e.target.value; clip.name = `Texto: ${e.target.value}`; this.renderTimeline(); this.renderFrame(); });
+                    document.getElementById('insp-font').addEventListener('change', (e) => { clip.font = e.target.value; this.renderFrame(); });
+                    document.getElementById('insp-color').addEventListener('input', (e) => { clip.color = e.target.value; this.renderFrame(); });
+                    document.getElementById('insp-size').addEventListener('input', (e) => { clip.size = parseInt(e.target.value) || 24; this.renderFrame(); });
+                    document.getElementById('insp-delete').addEventListener('click', () => this.deleteSelectedClip());
+                } else {
+                    panel.innerHTML = `
+                        <div style="display:flex; flex-direction:column; gap:0.75rem;">
+                            <div>
+                                <span style="font-size:0.7rem; color:var(--text-muted); display:block;">Nombre</span>
+                                <strong style="font-size:0.85rem; color:white;">${clip.name}</strong>
+                            </div>
+                            <div>
+                                <label style="font-size:0.7rem; color:var(--text-muted)">Duración (s):</label>
+                                <input type="number" id="insp-duration" value="${clip.duration}" step="0.1" style="width:100%; margin-top:3px;">
+                            </div>
+                            <button id="insp-delete" class="btn danger" style="width:100%; margin-top:6px;">🗑️ Eliminar</button>
+                        </div>
+                    `;
+                    document.getElementById('insp-duration').addEventListener('input', (e) => {
+                        clip.duration = parseFloat(e.target.value) || 1;
+                        this.buildRulerTicks();
+                        this.renderTimeline();
+                    });
+                    document.getElementById('insp-delete').addEventListener('click', () => this.deleteSelectedClip());
+                }
+            }
+
+            togglePlay() {
+                this.initAudioContext();
+                this.isPlaying = !this.isPlaying;
+                document.getElementById('btn-play').innerHTML = this.isPlaying ? '⏸ Pausa' : '▶ Reproducir';
+                
+                if (this.isPlaying) {
+                    this.lastTime = performance.now();
+                    this.startNativePlayback();
+                    this.playLoop();
+                } else {
+                    if (this.animId) cancelAnimationFrame(this.animId);
+                    this.pauseNativePlayback();
+                }
+            }
+
+            startNativePlayback() {
+                const activeClips = this.clips.filter(c => this.currentTime >= c.start && this.currentTime <= (c.start + c.duration) && (c.type === 'video' || c.type === 'audio'));
+                this.mediaMap.forEach(m => m.element && m.element.pause && m.element.pause());
+
+                activeClips.forEach(clip => {
+                    const mediaObj = this.mediaMap.get(clip.mediaId);
+                    if (mediaObj && mediaObj.element) {
+                        mediaObj.element.currentTime = Math.max(0, this.currentTime - clip.start);
+                        mediaObj.element.play().catch(() => {});
+                    }
+                });
+            }
+
+            pauseNativePlayback() {
+                this.mediaMap.forEach(m => m.element && m.element.pause && m.element.pause());
+            }
+
+            syncMediaToCurrentTime() {
+                const activeClips = this.clips.filter(c => this.currentTime >= c.start && this.currentTime <= (c.start + c.duration) && (c.type === 'video' || c.type === 'audio'));
+                this.pauseNativePlayback();
+
+                activeClips.forEach(clip => {
+                    const mediaObj = this.mediaMap.get(clip.mediaId);
+                    if (mediaObj && mediaObj.element) {
+                        const localTime = Math.max(0, this.currentTime - clip.start);
+                        mediaObj.element.currentTime = localTime;
+                        mediaObj.element.onseeked = () => {
+                            this.renderFrame();
+                        };
+                    }
+                });
+
+                this.renderFrame();
+
+                if (this.isPlaying) {
+                    activeClips.forEach(clip => {
+                        const mediaObj = this.mediaMap.get(clip.mediaId);
+                        if (mediaObj && mediaObj.element) {
+                            mediaObj.element.play().catch(() => {});
+                        }
+                    });
+                }
+            }
+
+            playLoop() {
+                if (!this.isPlaying) return;
+                
+                const now = performance.now();
+                const delta = (now - this.lastTime) / 1000;
+                this.lastTime = now;
+
+                this.currentTime += delta;
+                const totalProjectDuration = this.getTotalDuration() - 2;
+
+                if (this.currentTime >= totalProjectDuration) {
+                    this.currentTime = 0;
+                    this.isPlaying = false;
+                    document.getElementById('btn-play').innerHTML = '▶ Reproducir';
+                    this.updatePlayheadPosition();
+                    this.renderFrame();
+                    this.pauseNativePlayback();
+                    return;
+                }
+
+                this.updatePlayheadPosition();
+                this.renderFrame();
+                this.simulateRemoteChanges();
+                
+                this.animId = requestAnimationFrame(() => this.playLoop());
+            }
+
+            renderFrame() {
+                this.ctx.fillStyle = '#000000';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+                const activeClips = this.clips.filter(c => this.currentTime >= c.start && this.currentTime <= (c.start + c.duration));
+                
+                activeClips.forEach(clip => {
+                    const mediaObj = this.mediaMap.get(clip.mediaId);
+
+                    if (mediaObj && mediaObj.type === 'video' && mediaObj.element) {
+                        try {
+                            if (mediaObj.element.readyState >= 2) {
+                                this.ctx.drawImage(mediaObj.element, 0, 0, this.canvas.width, this.canvas.height);
+                            }
+                        } catch (e) {}
+                    } else if (mediaObj && mediaObj.type === 'image' && mediaObj.element) {
+                        try {
+                            this.ctx.drawImage(mediaObj.element, 0, 0, this.canvas.width, this.canvas.height);
+                        } catch (e) {}
+                    } else if (clip.type === 'text') {
+                        this.ctx.font = `${clip.size}px ${clip.font}`;
+                        this.ctx.fillStyle = clip.color;
+                        this.ctx.fillText(clip.text, clip.x, clip.y);
+                    }
+                });
+            }
+
+            exportVideo() {
+                if (this.clips.length === 0) {
+                    alert('Añade clips a la línea de tiempo antes de exportar.');
+                    return;
+                }
+
+                this.initAudioContext();
+                const projectDuration = this.getTotalDuration() - 2;
+                alert(`Iniciando exportación completa (${projectDuration.toFixed(1)} segundos) con audio... Por favor espera.`);
+
+                const canvasStream = this.canvas.captureStream(30);
+                const audioTracks = this.audioDestination.stream.getAudioTracks();
+                
+                if (audioTracks.length > 0) {
+                    canvasStream.addTrack(audioTracks[0]);
+                }
+
+                let mimeType = MediaRecorder.isTypeSupported('video/mp4') ? 'video/mp4' : 'video/webm;codecs=vp9';
+                const recorder = new MediaRecorder(canvasStream, { mimeType });
+                const chunks = [];
+
+                recorder.ondataavailable = (e) => chunks.push(e.data);
+                recorder.onstop = () => {
+                    const blob = new Blob(chunks, { type: mimeType.includes('mp4') ? 'video/mp4' : 'video/webm' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'capcut-studio-export.mp4';
+                    a.click();
+                };
+
+                recorder.start();
+                this.currentTime = 0;
+                this.isPlaying = true;
+                this.lastTime = performance.now();
+                this.startNativePlayback();
+                this.playLoop();
+
+                setTimeout(() => {
+                    this.isPlaying = false;
+                    if (this.animId) cancelAnimationFrame(this.animId);
+                    recorder.stop();
+                    this.pauseNativePlayback();
+                    document.getElementById('btn-play').innerHTML = '▶ Reproducir';
+                }, projectDuration * 1000);
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => { window.app = new CapCutProApp(); });
+    </script>
+</body>
+</html>
